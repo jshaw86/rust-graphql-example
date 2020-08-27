@@ -1,0 +1,40 @@
+schema {
+  query: Query
+  mutation: Mutation 
+}
+
+type TodoList {
+  id: ID!
+  name: String!
+  text: String!
+  done: Boolean!
+  items: [Item]
+}
+
+type Item {
+  id: ID!
+  todoListId: ID!
+  name: String!
+  dueDate: String!
+}
+
+type Query {
+  todos: [TodoList!]! @juniper(ownership: "owned")
+  todo(id: Int!): TodoList! @juniper(ownership: "owned")
+}
+
+input NewTodo {
+  name: String!
+  text: String!
+  done: Boolean!
+}
+
+input NewItem {
+  name: String!
+  dueDate: String!
+}
+
+type Mutation {
+  createTodo(todo: NewTodo!, items: [NewItem!]!): TodoList! @juniper(ownership: "owned")
+  addItems(todoListId: Int!, items: [NewItem!]!): [Item!]! @juniper(ownership: "owned")
+}
