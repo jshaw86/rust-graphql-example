@@ -1,16 +1,19 @@
 CREATE TABLE IF NOT EXISTS todo_lists 
 (
-    id   BIGINT UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT,
-    name TEXT    NOT NULL,
-    text TEXT    NOT NULL,
-    done BOOLEAN NOT NULL DEFAULT FALSE
+    id   integer NOT NULL,
+    name text    NOT NULL,
+    text text    NOT NULL,
+    done boolean NOT NULL DEFAULT FALSE,
+    PRIMARY KEY(id)
 );
 
 CREATE TABLE IF NOT EXISTS items 
 (
-    id   BIGINT UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT,
-    todo_list_id BIGINT UNSIGNED NOT NULL,
-    name TEXT    NOT NULL,
-    due_date DATETIME NOT NULL,
-    UNIQUE KEY todo_list_fk (todo_list_id)
+    id   integer NOT NULL,
+    todo_list_id integer NOT NULL,
+    name text    NOT NULL,
+    due_date timestamp NOT NULL,
+    PRIMARY KEY(id)
 );
+
+
