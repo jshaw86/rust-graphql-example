@@ -1,59 +1,49 @@
-use async_graphql::{Context, ID};
+use async_graphql::{FieldError, Result, SimpleObject, Context};
+use sqlx::{Pool, Postgres, FromRow};
+use async_graphql::dataloader::{DataLoader, Loader};
+use async_trait::async_trait;
+use std::collections::HashMap;
 
+#[derive(FromRow, Clone, SimpleObject)]
 pub struct Item {
-    id: ID,
-    todo_list_id: ID,
+    id: i32,
+    todo_list_id: i32,
     name: String,
     due_date: String,
 }
 
-#[async_graphql::Object]
-impl Item {
-    async fn id(&self) -> &str {
-        &self.id
-    }
-
-    async fn todo_list_id(&self) -> &str {
-        &self.todo_list_id
-    }
-
-    async fn name(&self) -> &str {
-        &self.name
-    }
-
-    async fn due_date(&self) -> &str {
-        &self.due_date
-    }
-}
-
+#[derive(FromRow, Clone, SimpleObject)]
 pub struct TodoList {
-    id: ID,
+    id: i32,
     name: String,
     text: String,
     done: bool,
-    items: Option<Vec<Option<Item>>>,
 }
 
-#[async_graphql::Object]
-impl TodoList {
-    async fn id(&self) -> &str {
-        &self.id
+pub struct TodoListLoader(Pool<Postgres>);
+/*
+impl TodoListLoader {
+    fn new(postgres_pool: Pool<Postgres>) -> Self {
+        Self(postgres_pool)
     }
+}
+*/
 
-    async fn name(&self) -> &str {
-        &self.name
-    }
 
-    async fn text(&self) -> &str {
-        &self.text
-    }
+#[async_trait]
+impl Loader<i32> for TodoListLoader {
+    type Value = TodoList;
+    type Error = FieldError;
 
-    async fn done(&self) -> &bool {
-        &self.done
-    }
-
-    async fn items(&self) -> &Option<Vec<Option<Item>>> {
-        &self.items
+    async fn load(&self, _keys: &[i32]) -> Result<HashMap<i32, Self::Value>, Self::Error> {
+        Ok(sqlx::query_as!(TodoList, "SELECT * FROM todo_lists")
+           .fetch_all(&self.0)
+           .await?
+           .iter()
+           .map(|todo: &TodoList| (todo.id, todo.clone()))
+           .into_iter()
+           .collect()
+          )
     }
 }
 
@@ -61,18 +51,22 @@ pub struct QueryRoot;
 
 #[async_graphql::Object]
 impl QueryRoot {
-    async fn todos(&self, _ctx: &Context<'_>) -> Vec<TodoList> {
-        vec![]
+    async fn todos(&self, ctx: &Context<'_>) -> Option<Vec<TodoList>> {
+       Some(ctx
+            .data_unchecked::<DataLoader<TodoListLoader>>()
+            .load_many(vec![1])
+            .await.ok()?
+            .values()
+            .cloned()
+            .collect::<Vec<TodoList>>())
+
     }
 
-    async fn todo(&self, _ctx: &Context<'_>) -> TodoList {
-        TodoList {
-            id: ID::from("1"),
-            name: "foo".to_string(),
-            text: "bar".to_string(),
-            done: false,
-            items: Some(vec![]),
-        }
+    async fn todo(&self, ctx: &Context<'_>) -> Option<TodoList> {
+        ctx
+           .data_unchecked::<DataLoader<TodoListLoader>>()
+           .load_one(1)
+           .await.ok()?
     }
 }
 
@@ -82,21 +76,19 @@ pub struct MutationRoot;
 impl MutationRoot {
     async fn create_todo(&self, _ctx: &Context<'_>) -> TodoList {
         TodoList {
-            id: ID::from("1"),
+            id: 1,
             name: "foo".to_string(),
             text: "bar".to_string(),
             done: false,
-            items: Some(vec![]),
         }
     }
 
     async fn add_items(&self, _ctx: &Context<'_>) -> TodoList {
         TodoList {
-            id: ID::from(1),
+            id: 1,
             name: "foo".to_string(),
             text: "bar".to_string(),
             done: false,
-            items: Some(vec![]),
         }
     }
 }
